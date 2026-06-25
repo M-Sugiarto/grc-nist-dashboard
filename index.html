@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cyber GRC Dashboard — NIST CSF 2.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,72,400;0,72,500;0,72,600;0,72,700;1,72,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B1220;
+    --panel:#121A2C;
+    --panel-2:#161F37;
+    --panel-3:#1B2542;
+    --border:rgba(255,255,255,0.08);
+    --border-strong:rgba(255,255,255,0.14);
+    --text:#E8ECF2;
+    --text-dim:#8C9BB5;
+    --text-faint:#5C6B87;
+    --gold:#C9A24B;
+    --gold-dim:rgba(201,162,75,0.18);
+    --sage:#6FA287;
+    --sage-dim:rgba(111,162,135,0.18);
+    --amber:#D7A33B;
+    --amber-dim:rgba(215,163,59,0.18);
+    --rust:#C0584B;
+    --rust-dim:rgba(192,88,75,0.18);
+    --steel:#5B7FA6;
+    --steel-dim:rgba(91,127,166,0.18);
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
+  body{min-height:100vh;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .serif{font-family:'Newsreader',serif;}
+
+  /* ===== Top bar ===== */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 28px;border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, var(--panel-2), var(--bg));
+    flex-wrap:wrap;gap:14px;
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand-mark{
+    width:38px;height:38px;border-radius:50%;
+    border:2px solid var(--gold);position:relative;flex:none;
+  }
+  .brand-mark::before{
+    content:'';position:absolute;inset:7px;border-radius:50%;background:var(--gold);opacity:0.85;
+  }
+  .brand-text .org-display{font-family:'Newsreader',serif;font-size:19px;font-weight:600;}
+  .brand-text .sub{font-size:11.5px;color:var(--text-dim);letter-spacing:0.06em;text-transform:uppercase;margin-top:1px;}
+  .top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .btn{
+    font-family:'Inter',sans-serif;font-size:12.5px;font-weight:600;letter-spacing:0.01em;
+    padding:9px 14px;border-radius:7px;border:1px solid var(--border-strong);
+    background:var(--panel-3);color:var(--text);cursor:pointer;transition:all .15s ease;
+  }
+  .btn:hover{border-color:var(--gold);color:var(--gold);}
+  .btn.primary{background:var(--gold);color:#1A1408;border-color:var(--gold);}
+  .btn.primary:hover{background:#dbb35e;color:#1A1408;}
+  .btn.ghost{background:transparent;}
+  .btn.danger:hover{border-color:var(--rust);color:var(--rust);}
+  input[type=file]{display:none;}
+
+  /* ===== Nav ===== */
+  .navbar{
+    display:flex;gap:4px;padding:0 28px;border-bottom:1px solid var(--border);
+    background:var(--bg);overflow-x:auto;
+  }
+  .navbtn{
+    background:none;border:none;color:var(--text-dim);font-family:'Inter',sans-serif;
+    font-size:13.5px;font-weight:600;padding:14px 16px 12px;cursor:pointer;
+    border-bottom:2px solid transparent;white-space:nowrap;
+  }
+  .navbtn:hover{color:var(--text);}
+  .navbtn.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+  .wrap{max-width:1320px;margin:0 auto;padding:28px;}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  /* ===== Org profile ===== */
+  .org-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
+  .org-field label{font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;}
+  .org-field input{
+    width:100%;background:var(--panel-3);border:1px solid var(--border);border-radius:6px;color:var(--text);
+    font-family:'Inter',sans-serif;font-size:13px;padding:8px 10px;
+  }
+  .org-field input:focus{outline:none;border-color:var(--gold);}
+
+  /* ===== KPI row ===== */
+  .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px;}
+  .kpi{
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px 18px;position:relative;overflow:hidden;
+  }
+  .kpi .label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;}
+  .kpi .value{font-family:'Newsreader',serif;font-size:30px;font-weight:600;line-height:1;}
+  .kpi .value.gold{color:var(--gold);}
+  .kpi .delta{font-size:11.5px;color:var(--text-faint);margin-top:6px;}
+  .kpi .tag{display:inline-block;margin-top:8px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;}
+
+  /* ===== Panel ===== */
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:22px;}
+  .panel + .panel{margin-top:18px;}
+  .panel-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+  .panel-title{font-family:'Newsreader',serif;font-size:18px;font-weight:600;}
+  .panel-sub{font-size:12.5px;color:var(--text-dim);}
+
+  .grid-2{display:grid;grid-template-columns:1.1fr 0.9fr;gap:18px;}
+
+  /* ===== Wheel ===== */
+  .wheel-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .wedge{cursor:pointer;transition:opacity .15s ease;}
+  .wedge:hover{opacity:0.78;}
+  .wedge-label{font-family:'Inter',sans-serif;font-size:11.5px;font-weight:700;fill:#0B1220;text-anchor:middle;pointer-events:none;}
+  .wedge-score{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;fill:#0B1220;text-anchor:middle;pointer-events:none;}
+  .center-circle{cursor:pointer;transition:opacity .15s ease;}
+  .center-circle:hover{opacity:0.85;}
+  .center-label{font-family:'Inter',sans-serif;font-size:13px;font-weight:700;fill:#0B1220;text-anchor:middle;pointer-events:none;letter-spacing:0.04em;}
+  .center-score{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;fill:#0B1220;text-anchor:middle;pointer-events:none;}
+  .center-sub{font-family:'Inter',sans-serif;font-size:9.5px;fill:rgba(11,18,32,0.7);text-anchor:middle;pointer-events:none;}
+
+  .legend-row{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:6px;}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-dim);}
+  .swatch{width:10px;height:10px;border-radius:3px;}
+
+  /* ===== Radar ===== */
+  .radar-wrap{display:flex;flex-direction:column;align-items:center;}
+  .radar-label{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;fill:var(--text-dim);text-anchor:middle;}
+
+  /* ===== Attention list ===== */
+  .att-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+  .att-item{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:10px 12px;background:var(--panel-2);border-radius:7px;border-left:3px solid var(--rust);
+  }
+  .att-item.amber-b{border-left-color:var(--amber);}
+  .att-main{display:flex;flex-direction:column;gap:2px;}
+  .att-name{font-size:13px;font-weight:600;}
+  .att-meta{font-size:11px;color:var(--text-dim);}
+  .att-due{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--text-dim);white-space:nowrap;text-align:right;}
+  .att-ticket{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--gold);}
+
+  /* ===== Tier legend ===== */
+  .tier-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .tier-card{padding:12px 14px;border-radius:8px;background:var(--panel-2);border:1px solid var(--border);}
+  .tier-card .t-num{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gold);font-weight:600;}
+  .tier-card .t-name{font-family:'Newsreader',serif;font-size:15px;font-weight:600;margin:3px 0 5px;}
+  .tier-card .t-desc{font-size:11.5px;color:var(--text-dim);line-height:1.45;}
+  .tier-card.current{border-color:var(--gold);background:var(--gold-dim);}
+
+  /* ===== Framework map ===== */
+  .func-selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+  .func-chip{
+    border:1px solid var(--border-strong);background:var(--panel-2);color:var(--text-dim);
+    padding:8px 14px;border-radius:20px;font-size:12.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;
+  }
+  .func-chip.active{border-color:var(--gold);color:var(--gold);background:var(--gold-dim);}
+  .func-chip .dot{width:7px;height:7px;border-radius:50%;}
+
+  .cat-row{
+    border:1px solid var(--border);border-radius:9px;padding:14px 16px;margin-bottom:14px;background:var(--panel-2);
+  }
+  .cat-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:4px;}
+  .cat-name{font-weight:600;font-size:14.5px;}
+  .cat-code{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gold);margin-right:8px;}
+  .cat-score-pill{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:20px;}
+
+  .module-row{border:1px solid var(--border);border-radius:7px;padding:11px 13px;margin-top:9px;background:var(--panel-3);}
+  .module-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .module-fields{display:flex;gap:10px;flex-wrap:wrap;margin-top:9px;align-items:flex-end;}
+  .module-fields .f{display:flex;flex-direction:column;}
+  .module-fields label{font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:3px;}
+  .module-fields input, .module-fields textarea{
+    background:var(--panel);border:1px solid var(--border);border-radius:5px;color:var(--text);
+    font-family:'Inter',sans-serif;font-size:12.5px;padding:6px 8px;
+  }
+  .module-label-input{width:175px;font-weight:600;}
+  .owner-input{width:150px;}
+  .target-input{width:85px;}
+  .ticket-input{width:120px;font-family:'IBM Plex Mono',monospace !important;}
+  .note-input{width:230px;height:32px;resize:vertical;font-size:12px;font-family:'Inter',sans-serif;}
+
+  .remove-module-btn{
+    background:none;border:1px solid var(--border-strong);color:var(--text-faint);width:24px;height:24px;
+    border-radius:50%;cursor:pointer;font-size:13px;line-height:1;flex:none;
+  }
+  .remove-module-btn:hover{color:var(--rust);border-color:var(--rust);}
+  .add-module-btn{margin-top:11px;font-size:11.5px;padding:7px 12px;}
+
+  .stepper{display:flex;align-items:flex-start;gap:4px;}
+  .step-btn{
+    width:28px;height:28px;border-radius:50%;border:2px solid var(--border-strong);background:var(--panel);
+    color:var(--text-faint);font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:all .15s ease;
+  }
+  .step-btn.filled{background:var(--gold);border-color:var(--gold);color:#1A1408;}
+  .step-btn.filled.s-validated{background:var(--sage);border-color:var(--sage);}
+  .step-connector{width:10px;height:2px;background:var(--border-strong);margin-top:13px;}
+  .step-connector.filled{background:var(--gold);}
+  .stepper-label{font-size:9px;color:var(--text-faint);margin-top:3px;text-align:center;width:28px;}
+
+  /* ===== Roadmap ===== */
+  .phase-card{border:1px solid var(--border);border-radius:9px;padding:16px 18px;margin-bottom:12px;background:var(--panel-2);}
+  .phase-top{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+  .phase-title{font-family:'Newsreader',serif;font-size:16px;font-weight:600;}
+  .phase-when{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--text-dim);}
+  .phase-tags{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+  .ptag{font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:5px;background:var(--panel-3);color:var(--text-dim);}
+  .progress-track{height:8px;border-radius:5px;background:var(--panel-3);overflow:hidden;}
+  .progress-fill{height:100%;border-radius:5px;}
+  .phase-foot{display:flex;justify-content:space-between;margin-top:6px;font-size:11.5px;color:var(--text-dim);}
+
+  /* ===== Audit log ===== */
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;color:var(--text-dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;padding:8px 10px;border-bottom:1px solid var(--border-strong);}
+  td{padding:9px 10px;border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  .empty-state{padding:40px 20px;text-align:center;color:var(--text-faint);font-size:13px;}
+  .status-pill{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;display:inline-block;}
+  .ticket-chip{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gold);background:var(--gold-dim);padding:2px 7px;border-radius:5px;}
+
+  footer{text-align:center;padding:24px;color:var(--text-faint);font-size:11.5px;}
+
+  @media (max-width: 980px){
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .org-grid{grid-template-columns:repeat(2,1fr);}
+    .grid-2{grid-template-columns:1fr;}
+  }
+
+  @media print{
+    .navbar,.top-actions,.btn{display:none !important;}
+    body{background:#fff;color:#111;}
+    .panel,.kpi,.cat-row,.module-row,.phase-card,.att-item{background:#fff !important;border:1px solid #ccc !important;color:#111 !important;}
+    .tab-panel{display:block !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <div class="brand-text">
+      <div class="org-display" id="orgDisplay">Your Organization</div>
+      <div class="sub">Cybersecurity Governance, Risk &amp; Compliance — NIST CSF 2.0</div>
+    </div>
+  </div>
+  <div class="top-actions">
+    <span class="mono" id="lastUpdated" style="font-size:11px;color:var(--text-dim);margin-right:6px;"></span>
+    <button class="btn ghost" onclick="document.getElementById('importFile').click()">Import</button>
+    <input type="file" id="importFile" accept=".json">
+    <button class="btn ghost" onclick="exportJSON()">Export data</button>
+    <button class="btn ghost" onclick="exportCSV()">Export CSV</button>
+    <button class="btn ghost danger" onclick="resetDashboard()">Reset</button>
+    <button class="btn primary" onclick="window.print()">Print report</button>
+  </div>
+</div>
+
+<div class="navbar">
+  <button class="navbtn active" data-tab="overview">Executive Overview</button>
+  <button class="navbtn" data-tab="map">Framework Map</button>
+  <button class="navbtn" data-tab="roadmap">Roadmap</button>
+  <button class="navbtn" data-tab="audit">Audit Log</button>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ OVERVIEW ============ -->
+  <div class="tab-panel active" id="tab-overview">
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Organization profile</div>
+          <div class="panel-sub">Edit these to fit any organization — this is what appears on exports and the printed report</div>
+        </div>
+      </div>
+      <div class="org-grid" id="orgGrid"></div>
+    </div>
+
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">NIST CSF 2.0 function map</div>
+            <div class="panel-sub">Govern sits at the center — it directs and is informed by the five outer functions. Click any segment to drill in.</div>
+          </div>
+        </div>
+        <div class="wheel-wrap">
+          <svg id="wheelSvg" viewBox="0 0 400 400" width="340" height="340"></svg>
+          <div class="legend-row">
+            <div class="legend-item"><span class="swatch" style="background:var(--sage)"></span>On track (≥75)</div>
+            <div class="legend-item"><span class="swatch" style="background:var(--amber)"></span>Developing (45–74)</div>
+            <div class="legend-item"><span class="swatch" style="background:var(--rust)"></span>Needs attention (&lt;45)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Maturity by function</div>
+            <div class="panel-sub">Relative coverage across all six functions</div>
+          </div>
+        </div>
+        <div class="radar-wrap">
+          <svg id="radarSvg" viewBox="0 0 340 340" width="300" height="300"></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Needs board attention</div>
+          <div class="panel-sub">Not yet validated, prioritized by target date — each tagged with its ticket number where available</div>
+        </div>
+      </div>
+      <ul class="att-list" id="attentionList"></ul>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">NIST maturity tiers</div>
+          <div class="panel-sub">Where this organization currently sits, in NIST's own language</div>
+        </div>
+      </div>
+      <div class="tier-grid" id="tierGrid"></div>
+    </div>
+  </div>
+
+  <!-- ============ FRAMEWORK MAP ============ -->
+  <div class="tab-panel" id="tab-map">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Function detail &amp; validation gates</div>
+          <div class="panel-sub">Each category can be split into multiple modules — by business unit, region, or subsidiary — so larger organizations can track ownership separately. Every module carries its own 4-stage gate (Documented → Implemented → Tested → Validated) and an optional ticket number for ServiceNow, Jira, or similar.</div>
+        </div>
+      </div>
+      <div class="func-selector" id="funcSelector"></div>
+      <div id="categoryList"></div>
+    </div>
+  </div>
+
+  <!-- ============ ROADMAP ============ -->
+  <div class="tab-panel" id="tab-roadmap">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Implementation roadmap</div>
+          <div class="panel-sub">Progress is calculated automatically from the validation gates in Framework Map</div>
+        </div>
+      </div>
+      <div id="phaseList"></div>
+    </div>
+  </div>
+
+  <!-- ============ AUDIT LOG ============ -->
+  <div class="tab-panel" id="tab-audit">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Audit trail</div>
+          <div class="panel-sub">Every status, module, and ticket change is logged here for board and auditor review</div>
+        </div>
+      </div>
+      <div id="auditTableWrap"></div>
+    </div>
+  </div>
+
+</div>
+
+<footer>NIST CSF 2.0–aligned tracker · Data stays in this browser session only — use Export data to save, Import to reload · Not a substitute for a formal compliance audit</footer>
+
+<script>
+/* ================= STATE ================= */
+const STATUS_LABELS = ['Not started','Documented','Implemented','Tested','Validated'];
+const STATUS_SHORT = ['—','D','I','T','V'];
+let idSeq = 0;
+function nextId(prefix){ idSeq += 1; return prefix + '-' + idSeq; }
+
+let orgProfile = {
+  name: 'Your Organization',
+  scope: 'Enterprise-wide',
+  industry: 'Add industry',
+  date: new Date().toISOString().slice(0,10),
+  preparedBy: 'CISO Office'
+};
+
+function mkModule(label, owner, status, target, ticket, note){
+  return {id: nextId('mod'), label, owner, status, target, ticket: ticket||'', note: note||''};
+}
+
+let FUNCTIONS = [
+  {id:'GV', name:'Govern', short:'GV', desc:'Establishes and monitors cybersecurity risk strategy, expectations, and policy', categories:[
+    {code:'GV.OC', name:'Organizational Context', modules:[mkModule('Organization-wide','Board / CEO',4,'Q1 2026','','Mission, stakeholders and legal context documented and signed off by the board.')]},
+    {code:'GV.RM', name:'Risk Management Strategy', modules:[mkModule('Organization-wide','CISO Office',3,'Q1 2026','','Risk appetite statement drafted; awaiting one more committee review cycle.')]},
+    {code:'GV.RR', name:'Roles, Responsibilities & Authorities', modules:[mkModule('Organization-wide','CISO Office',4,'Q1 2026','','RACI signed off across IT, Legal and business units.')]},
+    {code:'GV.PO', name:'Policy', modules:[mkModule('Organization-wide','Legal & Compliance',3,'Q2 2026','','Core policy set implemented; annual review and sign-off pending.')]},
+    {code:'GV.OV', name:'Oversight', modules:[mkModule('Organization-wide','Audit Committee',2,'Q2 2026','','Reporting cadence to the board defined, not yet tested end to end.')]},
+    {code:'GV.SC', name:'Cybersecurity Supply Chain Risk Mgmt', modules:[mkModule('Organization-wide','Procurement & IT Security',1,'Q3 2026','','Vendor risk questionnaire drafted, not yet rolled out to suppliers.')]},
+  ]},
+  {id:'ID', name:'Identify', short:'ID', desc:'Understands the organization’s assets, risks, and improvement needs', categories:[
+    {code:'ID.AM', name:'Asset Management', modules:[mkModule('Organization-wide','IT Operations',3,'Q1 2026','','Asset inventory implemented; reconciliation test scheduled.')]},
+    {code:'ID.RA', name:'Risk Assessment', modules:[mkModule('Organization-wide','Risk Committee',2,'Q2 2026','','Methodology implemented, first full assessment cycle in progress.')]},
+    {code:'ID.IM', name:'Improvement', modules:[mkModule('Organization-wide','CISO Office',1,'Q3 2026','','Lessons-learned process documented, not yet implemented org-wide.')]},
+  ]},
+  {id:'PR', name:'Protect', short:'PR', desc:'Safeguards used to manage cybersecurity risk', categories:[
+    {code:'PR.AA', name:'Identity Mgmt & Access Control', modules:[mkModule('Organization-wide','IT Security',3,'Q1 2026','','MFA and least-privilege implemented; access recertification being tested.')]},
+    {code:'PR.AT', name:'Awareness & Training', modules:[mkModule('Organization-wide','HR & IT Security',2,'Q2 2026','','Annual training rolled out; phishing-simulation testing underway.')]},
+    {code:'PR.DS', name:'Data Security', modules:[mkModule('Organization-wide','IT Security',2,'Q2 2026','','Encryption at rest/in transit implemented; DLP testing in progress.')]},
+    {code:'PR.PS', name:'Platform Security', modules:[mkModule('Organization-wide','IT Operations',1,'Q3 2026','','Hardening baseline documented, rollout to production starting.')]},
+    {code:'PR.IR', name:'Technology Infrastructure Resilience', modules:[mkModule('Organization-wide','IT Operations',1,'Q3 2026','','Resilience requirements documented; redundancy build in progress.')]},
+  ]},
+  {id:'DE', name:'Detect', short:'DE', desc:'Finds and analyzes possible cybersecurity attacks and compromises', categories:[
+    {code:'DE.CM', name:'Continuous Monitoring', modules:[mkModule('Organization-wide','SOC / IT Security',2,'Q2 2026','','SIEM implemented across core systems; detection-rule tuning in progress.')]},
+    {code:'DE.AE', name:'Adverse Event Analysis', modules:[mkModule('Organization-wide','SOC / IT Security',1,'Q3 2026','','Triage workflow documented, tooling rollout in progress.')]},
+  ]},
+  {id:'RS', name:'Respond', short:'RS', desc:'Takes action regarding a detected cybersecurity incident', categories:[
+    {code:'RS.MA', name:'Incident Management', modules:[mkModule('Organization-wide','IT Security',2,'Q2 2026','','IR plan implemented; first tabletop exercise scheduled.')]},
+    {code:'RS.AN', name:'Incident Analysis', modules:[mkModule('Organization-wide','IT Security',1,'Q3 2026','','Forensics procedure documented, not yet exercised.')]},
+    {code:'RS.CO', name:'Incident Reporting & Communication', modules:[mkModule('Organization-wide','Communications & Legal',1,'Q3 2026','','Regulatory notification playbook documented, legal sign-off pending.')]},
+    {code:'RS.MI', name:'Incident Mitigation', modules:[mkModule('Organization-wide','IT Security',0,'Q4 2026','','Containment runbooks not yet started.')]},
+  ]},
+  {id:'RC', name:'Recover', short:'RC', desc:'Restores assets and operations affected by a cybersecurity incident', categories:[
+    {code:'RC.RP', name:'Incident Recovery Plan Execution', modules:[mkModule('Organization-wide','IT Operations',0,'Q4 2026','','Recovery plan not yet drafted — dependent on BCP refresh.')]},
+    {code:'RC.CO', name:'Incident Recovery Communication', modules:[mkModule('Organization-wide','Communications',0,'Q4 2026','','Stakeholder communication plan not yet started.')]},
+  ]},
+];
+
+const PHASES = [
+  {name:'Phase 1 — Foundation', when:'Q1–Q2 2026', funcs:['GV','ID']},
+  {name:'Phase 2 — Protective controls', when:'Q2–Q3 2026', funcs:['PR']},
+  {name:'Phase 3 — Detection & response', when:'Q3–Q4 2026', funcs:['DE','RS']},
+  {name:'Phase 4 — Recovery & resilience', when:'Q4 2026–Q1 2027', funcs:['RC']},
+];
+
+let auditLog = [];
+let selectedFunction = 'GV';
+
+/* ================= SCORING HELPERS ================= */
+function allModulesFlat(){
+  const out = [];
+  FUNCTIONS.forEach(f => f.categories.forEach(c => c.modules.forEach(m => {
+    out.push({...m, funcId:f.id, funcName:f.name, code:c.code, catName:c.name});
+  })));
+  return out;
+}
+function categoryScorePct(cat){
+  if(cat.modules.length===0) return 0;
+  const avg = cat.modules.reduce((a,m)=>a+m.status,0) / cat.modules.length;
+  return Math.round((avg/4)*100);
+}
+function funcScore(f){
+  const scores = f.categories.map(categoryScorePct);
+  return Math.round(scores.reduce((a,b)=>a+b,0) / scores.length);
+}
+function overallScore(){
+  const scores = FUNCTIONS.map(funcScore);
+  return Math.round(scores.reduce((a,b)=>a+b,0) / scores.length);
+}
+function colorForScore(score){
+  if(score>=75) return 'var(--sage)';
+  if(score>=45) return 'var(--amber)';
+  return 'var(--rust)';
+}
+function rawColorForScore(score){
+  if(score>=75) return '#6FA287';
+  if(score>=45) return '#D7A33B';
+  return '#C0584B';
+}
+function tierForScore(score){
+  if(score>=75) return 4;
+  if(score>=50) return 3;
+  if(score>=25) return 2;
+  return 1;
+}
+function fmtNow(){
+  const d = new Date();
+  return d.toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+/* ================= ORG PROFILE ================= */
+function renderOrgProfile(){
+  document.getElementById('orgDisplay').textContent = orgProfile.name || 'Your Organization';
+  document.getElementById('orgGrid').innerHTML = `
+    <div class="org-field">
+      <label>Organization name</label>
+      <input value="${escapeAttr(orgProfile.name)}" onchange="updateOrgField('name', this.value)">
+    </div>
+    <div class="org-field">
+      <label>Scope / business unit</label>
+      <input value="${escapeAttr(orgProfile.scope)}" onchange="updateOrgField('scope', this.value)" placeholder="e.g. Enterprise-wide, APAC region, Subsidiary A">
+    </div>
+    <div class="org-field">
+      <label>Industry</label>
+      <input value="${escapeAttr(orgProfile.industry)}" onchange="updateOrgField('industry', this.value)">
+    </div>
+    <div class="org-field">
+      <label>Assessment date</label>
+      <input type="date" value="${escapeAttr(orgProfile.date)}" onchange="updateOrgField('date', this.value)">
+    </div>
+    <div class="org-field">
+      <label>Prepared by</label>
+      <input value="${escapeAttr(orgProfile.preparedBy)}" onchange="updateOrgField('preparedBy', this.value)">
+    </div>
+  `;
+}
+window.updateOrgField = function(field, value){
+  orgProfile[field] = value;
+  document.getElementById('orgDisplay').textContent = orgProfile.name || 'Your Organization';
+};
+function escapeAttr(s){ return String(s==null?'':s).replace(/"/g,'&quot;'); }
+function escapeHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ================= WHEEL (SVG) ================= */
+function polar(cx,cy,r,angleDeg){
+  const a = (angleDeg-90) * Math.PI/180;
+  return [cx + r*Math.cos(a), cy + r*Math.sin(a)];
+}
+function wedgePath(cx,cy,rOuter,rInner,startAngle,endAngle){
+  const [x1,y1] = polar(cx,cy,rOuter,startAngle);
+  const [x2,y2] = polar(cx,cy,rOuter,endAngle);
+  const [x3,y3] = polar(cx,cy,rInner,endAngle);
+  const [x4,y4] = polar(cx,cy,rInner,startAngle);
+  const largeArc = (endAngle-startAngle) > 180 ? 1 : 0;
+  return `M ${x1} ${y1} A ${rOuter} ${rOuter} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${rInner} ${rInner} 0 ${largeArc} 0 ${x4} ${y4} Z`;
+}
+function renderWheel(){
+  const outer = FUNCTIONS.filter(f=>f.id!=='GV');
+  const cx=200, cy=200, rOuter=190, rInner=84;
+  const step = 360/outer.length;
+  let svg = '';
+  outer.forEach((f,i)=>{
+    const start = i*step, end=(i+1)*step;
+    const mid = (start+end)/2;
+    const score = funcScore(f);
+    const path = wedgePath(cx,cy,rOuter,rInner,start,end);
+    const [lx,ly] = polar(cx,cy,(rOuter+rInner)/2 - 6, mid);
+    const [sx,sy] = polar(cx,cy,(rOuter+rInner)/2 + 16, mid);
+    svg += `<path class="wedge" d="${path}" fill="${rawColorForScore(score)}" fill-opacity="0.88" stroke="#0B1220" stroke-width="2.5" onclick="goToFunction('${f.id}')"><title>${f.name} — ${score}%</title></path>`;
+    svg += `<text class="wedge-label" x="${lx}" y="${ly}">${f.name}</text>`;
+    svg += `<text class="wedge-score" x="${sx}" y="${sy+5}">${score}%</text>`;
+  });
+  const gScore = funcScore(FUNCTIONS.find(f=>f.id==='GV'));
+  svg += `<circle class="center-circle" cx="${cx}" cy="${cy}" r="${rInner-6}" fill="${rawColorForScore(gScore)}" fill-opacity="0.9" stroke="#0B1220" stroke-width="2.5" onclick="goToFunction('GV')"><title>Govern — ${gScore}%</title></circle>`;
+  svg += `<text class="center-label" x="${cx}" y="${cy-12}">GOVERN</text>`;
+  svg += `<text class="center-score" x="${cx}" y="${cy+12}">${gScore}%</text>`;
+  svg += `<text class="center-sub" x="${cx}" y="${cy+27}">foundational</text>`;
+  document.getElementById('wheelSvg').innerHTML = svg;
+}
+window.goToFunction = function(id){
+  selectedFunction = id;
+  switchTab('map');
+  renderMap();
+};
+
+/* ================= RADAR ================= */
+function renderRadar(){
+  const cx=170, cy=160, maxR=120;
+  const order = ['GV','ID','PR','DE','RS','RC'];
+  const n = order.length;
+  let svg = '';
+  [25,50,75,100].forEach(level=>{
+    let pts = [];
+    for(let i=0;i<n;i++){
+      const angle = i*(360/n);
+      const [x,y] = polar(cx,cy, maxR*level/100, angle);
+      pts.push(`${x},${y}`);
+    }
+    svg += `<polygon points="${pts.join(' ')}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+  });
+  order.forEach((id,i)=>{
+    const angle = i*(360/n);
+    const [x,y] = polar(cx,cy,maxR,angle);
+    svg += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+    const [lx,ly] = polar(cx,cy,maxR+24,angle);
+    const f = FUNCTIONS.find(f=>f.id===id);
+    svg += `<text class="radar-label" x="${lx}" y="${ly+4}">${f.name}</text>`;
+  });
+  let dataPts = [];
+  order.forEach((id,i)=>{
+    const f = FUNCTIONS.find(f=>f.id===id);
+    const score = funcScore(f);
+    const angle = i*(360/n);
+    const [x,y] = polar(cx,cy, maxR*score/100, angle);
+    dataPts.push(`${x},${y}`);
+  });
+  svg += `<polygon points="${dataPts.join(' ')}" fill="rgba(201,162,75,0.25)" stroke="#C9A24B" stroke-width="2"/>`;
+  order.forEach((id,i)=>{
+    const f = FUNCTIONS.find(f=>f.id===id);
+    const score = funcScore(f);
+    const angle = i*(360/n);
+    const [x,y] = polar(cx,cy, maxR*score/100, angle);
+    svg += `<circle cx="${x}" cy="${y}" r="3.5" fill="#C9A24B"/>`;
+  });
+  document.getElementById('radarSvg').innerHTML = svg;
+}
+
+/* ================= KPIs ================= */
+function renderKPIs(){
+  const score = overallScore();
+  const tier = tierForScore(score);
+  const mods = allModulesFlat();
+  const validated = mods.filter(m=>m.status===4).length;
+  const onTrack = FUNCTIONS.filter(f=>funcScore(f)>=70).length;
+  const notValidated = mods.filter(m=>m.status<4).sort((a,b)=>a.target.localeCompare(b.target));
+  const next = notValidated[0];
+  const tierNames = ['','Partial','Risk Informed','Repeatable','Adaptive'];
+  const tagColor = score>=75?'sage':score>=45?'amber':'rust';
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi">
+      <div class="label">Overall maturity</div>
+      <div class="value gold">${score}%</div>
+      <div class="tag" style="background:var(--${tagColor}-dim);color:var(--${tagColor})">Tier ${tier} · ${tierNames[tier]}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Modules validated</div>
+      <div class="value">${validated}<span style="font-size:16px;color:var(--text-dim)">/${mods.length}</span></div>
+      <div class="delta">Fully evidenced &amp; signed off</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Open items</div>
+      <div class="value">${mods.length - validated}</div>
+      <div class="delta">Not yet validated</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Functions on track</div>
+      <div class="value">${onTrack}<span style="font-size:16px;color:var(--text-dim)">/6</span></div>
+      <div class="delta">Scoring ≥ 70%</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Next milestone</div>
+      <div class="value" style="font-size:16px;line-height:1.3">${next? next.catName : 'All validated'}</div>
+      <div class="delta">${next? 'Target: '+next.target : ''}</div>
+    </div>
+  `;
+}
+
+/* ================= ATTENTION LIST ================= */
+function renderAttention(){
+  const mods = allModulesFlat().filter(m=>m.status<4).sort((a,b)=>{
+    if(a.target!==b.target) return a.target.localeCompare(b.target);
+    return a.status-b.status;
+  }).slice(0,6);
+  const list = document.getElementById('attentionList');
+  if(mods.length===0){
+    list.innerHTML = `<div class="empty-state">All modules validated. No outstanding items.</div>`;
+    return;
+  }
+  list.innerHTML = mods.map(m=>`
+    <li class="att-item ${m.status>=2?'amber-b':''}">
+      <div class="att-main">
+        <div class="att-name">${m.funcName} · ${m.catName} <span class="mono" style="color:var(--text-faint);font-size:10.5px">${m.code}</span>${m.label && m.label!=='Organization-wide' ? ' — '+escapeHtml(m.label) : ''}</div>
+        <div class="att-meta">Owner: ${escapeHtml(m.owner)} · Stage: ${STATUS_LABELS[m.status]}${m.ticket ? ' · <span class="att-ticket">'+escapeHtml(m.ticket)+'</span>' : ''}</div>
+      </div>
+      <div class="att-due">${m.target}</div>
+    </li>
+  `).join('');
+}
+
+/* ================= TIER LEGEND ================= */
+function renderTiers(){
+  const current = tierForScore(overallScore());
+  const tiers = [
+    {n:1, name:'Partial', desc:'Risk management practices are not formalized; managed reactively, sometimes ad hoc.'},
+    {n:2, name:'Risk Informed', desc:'Practices are approved by management but not yet established as organization-wide policy.'},
+    {n:3, name:'Repeatable', desc:'Practices are formally approved, expressed as policy, and applied consistently.'},
+    {n:4, name:'Adaptive', desc:'Practices are continuously improved based on lessons learned and predictive indicators.'},
+  ];
+  document.getElementById('tierGrid').innerHTML = tiers.map(t=>`
+    <div class="tier-card ${t.n===current?'current':''}">
+      <div class="t-num">TIER ${t.n}${t.n===current?' · CURRENT':''}</div>
+      <div class="t-name">${t.name}</div>
+      <div class="t-desc">${t.desc}</div>
+    </div>
+  `).join('');
+}
+
+/* ================= FRAMEWORK MAP ================= */
+function renderFuncSelector(){
+  document.getElementById('funcSelector').innerHTML = FUNCTIONS.map(f=>{
+    const score = funcScore(f);
+    return `<button class="func-chip ${f.id===selectedFunction?'active':''}" onclick="goToFunction('${f.id}')">
+      <span class="dot" style="background:${rawColorForScore(score)}"></span>${f.name} · ${score}%
+    </button>`;
+  }).join('');
+}
+function renderMap(){
+  renderFuncSelector();
+  const f = FUNCTIONS.find(f=>f.id===selectedFunction);
+  let html = `<p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;max-width:760px;">${f.desc}</p>`;
+  f.categories.forEach(c=>{ html += renderCategoryRow(f.id, c); });
+  document.getElementById('categoryList').innerHTML = html;
+}
+function renderCategoryRow(funcId, cat){
+  const score = categoryScorePct(cat);
+  let modulesHtml = cat.modules.map(m => renderModuleRow(funcId, cat.code, m, cat.modules.length>1)).join('');
+  return `
+    <div class="cat-row">
+      <div class="cat-head">
+        <div><span class="cat-code">${cat.code}</span><span class="cat-name">${cat.name}</span></div>
+        <div class="cat-score-pill" style="background:${colorForScore(score)};color:#0B1220;opacity:0.92;">${score}%</div>
+      </div>
+      ${modulesHtml}
+      <button class="btn ghost add-module-btn" onclick="addModule('${funcId}','${cat.code}')">+ Add module / business unit</button>
+    </div>
+  `;
+}
+function renderModuleRow(funcId, code, m, canRemove){
+  let steps = '';
+  for(let i=1;i<=4;i++){
+    const filled = m.status>=i;
+    const isValidated = i===4 && filled;
+    steps += `<div style="display:flex;flex-direction:column;align-items:center;">
+      <button class="step-btn ${filled?'filled':''} ${isValidated?'s-validated':''}" onclick="setStatus('${funcId}','${code}','${m.id}',${i})" title="${STATUS_LABELS[i]}">${STATUS_SHORT[i]}</button>
+      <div class="stepper-label">${STATUS_LABELS[i]}</div>
+    </div>`;
+    if(i<4) steps += `<div class="step-connector ${m.status>=i?'filled':''}"></div>`;
+  }
+  return `
+    <div class="module-row">
+      <div class="module-top">
+        <div class="stepper">${steps}</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn ghost" style="padding:6px 10px;font-size:11px;" onclick="setStatus('${funcId}','${code}','${m.id}',0)">Reset stage</button>
+          ${canRemove ? `<button class="remove-module-btn" title="Remove module" onclick="removeModule('${funcId}','${code}','${m.id}')">✕</button>` : ''}
+        </div>
+      </div>
+      <div class="module-fields">
+        <div class="f"><label>Module / business unit</label><input class="module-label-input" value="${escapeAttr(m.label)}" onchange="updateModuleField('${funcId}','${code}','${m.id}','label',this.value)"></div>
+        <div class="f"><label>Owner</label><input class="owner-input" value="${escapeAttr(m.owner)}" onchange="updateModuleField('${funcId}','${code}','${m.id}','owner',this.value)"></div>
+        <div class="f"><label>Target</label><input class="target-input" value="${escapeAttr(m.target)}" onchange="updateModuleField('${funcId}','${code}','${m.id}','target',this.value)"></div>
+        <div class="f"><label>Ticket #</label><input class="ticket-input" placeholder="e.g. JIRA-1042" value="${escapeAttr(m.ticket)}" onchange="updateModuleField('${funcId}','${code}','${m.id}','ticket',this.value)"></div>
+        <div class="f" style="flex:1;min-width:220px;"><label>Evidence / notes</label><textarea class="note-input" onchange="updateModuleField('${funcId}','${code}','${m.id}','note',this.value)">${escapeHtml(m.note)}</textarea></div>
+      </div>
+    </div>
+  `;
+}
+window.addModule = function(funcId, code){
+  const f = FUNCTIONS.find(f=>f.id===funcId);
+  const cat = f.categories.find(c=>c.code===code);
+  const n = cat.modules.length + 1;
+  cat.modules.push(mkModule('New module '+n, 'Unassigned', 0, 'TBD', '', ''));
+  auditLog.unshift({ts:fmtNow(), code, name:cat.name, func:f.name, from:'—', to:'Module added', ticket:''});
+  renderAll();
+};
+window.removeModule = function(funcId, code, moduleId){
+  const f = FUNCTIONS.find(f=>f.id===funcId);
+  const cat = f.categories.find(c=>c.code===code);
+  if(cat.modules.length<=1) return;
+  const removed = cat.modules.find(m=>m.id===moduleId);
+  if(!confirm('Remove module "'+(removed?removed.label:'')+'" from '+code+'? This cannot be undone.')) return;
+  cat.modules = cat.modules.filter(m=>m.id!==moduleId);
+  auditLog.unshift({ts:fmtNow(), code, name:cat.name, func:f.name, from:removed?removed.label:'', to:'Module removed', ticket:removed?removed.ticket:''});
+  renderAll();
+};
+window.setStatus = function(funcId, code, moduleId, newStatus){
+  const f = FUNCTIONS.find(f=>f.id===funcId);
+  const cat = f.categories.find(c=>c.code===code);
+  const m = cat.modules.find(m=>m.id===moduleId);
+  if(m.status === newStatus) return;
+  const from = m.status;
+  m.status = newStatus;
+  auditLog.unshift({ts:fmtNow(), code, name:cat.name+(m.label!=='Organization-wide'?' — '+m.label:''), func:f.name, from:STATUS_LABELS[from], to:STATUS_LABELS[newStatus], ticket:m.ticket});
+  renderAll();
+};
+window.updateModuleField = function(funcId, code, moduleId, field, value){
+  const f = FUNCTIONS.find(f=>f.id===funcId);
+  const cat = f.categories.find(c=>c.code===code);
+  const m = cat.modules.find(m=>m.id===moduleId);
+  m[field] = value;
+  renderAll();
+};
+
+/* ================= ROADMAP ================= */
+function renderRoadmap(){
+  document.getElementById('phaseList').innerHTML = PHASES.map(p=>{
+    const funcs = p.funcs.map(id=>FUNCTIONS.find(f=>f.id===id));
+    const cats = funcs.flatMap(f=>f.categories);
+    const mods = cats.flatMap(c=>c.modules);
+    const progress = Math.round(mods.reduce((a,m)=>a+m.status,0) / (mods.length*4) * 100);
+    const status = progress>=85?'On track':progress>=40?'In progress':'Early stage';
+    const statusColor = progress>=85?'sage':progress>=40?'amber':'rust';
+    return `
+      <div class="phase-card">
+        <div class="phase-top">
+          <div class="phase-title">${p.name}</div>
+          <div class="phase-when">${p.when}</div>
+        </div>
+        <div class="phase-tags">
+          ${funcs.map(f=>`<span class="ptag">${f.name}</span>`).join('')}
+          <span class="status-pill" style="background:var(--${statusColor}-dim);color:var(--${statusColor})">${status}</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" style="width:${progress}%;background:${rawColorForScore(progress)}"></div></div>
+        <div class="phase-foot"><span>${mods.filter(m=>m.status===4).length}/${mods.length} modules validated</span><span>${progress}% complete</span></div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ================= AUDIT LOG ================= */
+function renderAudit(){
+  const wrap = document.getElementById('auditTableWrap');
+  if(auditLog.length===0){
+    wrap.innerHTML = `<div class="empty-state">No changes logged yet. Adjust a validation stage in Framework Map to begin the audit trail.</div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <table>
+      <thead><tr><th>Timestamp</th><th>Function</th><th>Category / module</th><th>From</th><th>To</th><th>Ticket</th></tr></thead>
+      <tbody>
+        ${auditLog.map(a=>`<tr><td class="mono">${a.ts}</td><td>${a.func}</td><td>${a.code} — ${escapeHtml(a.name)}</td><td>${a.from}</td><td><strong>${a.to}</strong></td><td>${a.ticket?'<span class="ticket-chip">'+escapeHtml(a.ticket)+'</span>':'—'}</td></tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+/* ================= EXPORT / IMPORT ================= */
+function exportJSON(){
+  const payload = {orgProfile, functions: FUNCTIONS, auditLog, idSeq};
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (orgProfile.name||'grc-dashboard').replace(/[^a-z0-9]+/gi,'-').toLowerCase() + '-nist-data.json';
+  a.click();
+}
+function exportCSV(){
+  const rows = [['Function','Code','Category','Module','Owner','Status','Target','Ticket','Notes']];
+  allModulesFlat().forEach(m=>rows.push([m.funcName,m.code,m.catName,m.label,m.owner,STATUS_LABELS[m.status],m.target,m.ticket,(m.note||'').replace(/\n/g,' ')]));
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (orgProfile.name||'grc-dashboard').replace(/[^a-z0-9]+/gi,'-').toLowerCase() + '-nist-categories.csv';
+  a.click();
+}
+document.getElementById('importFile').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const data = JSON.parse(evt.target.result);
+      if(data.functions){ FUNCTIONS = data.functions; }
+      if(data.auditLog){ auditLog = data.auditLog; }
+      if(data.orgProfile){ orgProfile = data.orgProfile; }
+      if(data.idSeq){ idSeq = data.idSeq; }
+      renderAll();
+    }catch(err){
+      alert('Could not read that file — please choose a JSON export from this dashboard.');
+    }
+  };
+  reader.readAsText(file);
+});
+
+/* ================= RESET ================= */
+function resetDashboard(){
+  const ok = confirm('Reset to a blank template?\n\nThis clears every module, status, owner, ticket, and note, plus the audit log, so a new organization can start from scratch. Export your data first if you want to keep it — this cannot be undone.');
+  if(!ok) return;
+  FUNCTIONS = FUNCTIONS.map(f => ({
+    ...f,
+    categories: f.categories.map(c => ({
+      ...c, modules: [mkModule('Organization-wide','Unassigned',0,'TBD','','')]
+    }))
+  }));
+  auditLog = [];
+  orgProfile = {name:'Your Organization', scope:'Enterprise-wide', industry:'Add industry', date:new Date().toISOString().slice(0,10), preparedBy:'Unassigned'};
+  selectedFunction = 'GV';
+  renderAll();
+}
+
+/* ================= TABS ================= */
+function switchTab(name){
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active', p.id==='tab-'+name));
+}
+document.querySelectorAll('.navbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>switchTab(btn.dataset.tab));
+});
+
+/* ================= RENDER ALL ================= */
+function renderAll(){
+  document.getElementById('lastUpdated').textContent = 'Updated ' + fmtNow();
+  renderOrgProfile();
+  renderKPIs();
+  renderWheel();
+  renderRadar();
+  renderAttention();
+  renderTiers();
+  renderMap();
+  renderRoadmap();
+  renderAudit();
+}
+renderAll();
+</script>
+</body>
+</html>
