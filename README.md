@@ -2,7 +2,7 @@
 
 A single-file, interactive executive dashboard for tracking cybersecurity governance, risk, and compliance against the **NIST Cybersecurity Framework 2.0**. Built for C-level / board reporting, with built-in step-by-step validation so progress claims are backed by evidence, not just status updates.
 
-[Live preview](#) — open `index.html` directly in any browser, no build step, no server required.
+[Live preview](https://M-Sugiarto.github.io/grc-nist-dashboard/) — open `index.html` directly in any browser, no build step, no server required.
 
 ## What it does
 
