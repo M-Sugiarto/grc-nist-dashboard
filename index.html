@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cyber GRC Dashboard — NIST CSF 2.0</title>
+<title>GRC Executive Dashboard — NIST CSF 2.0 &amp; AI RMF 1.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,72,400;0,72,500;0,72,600;0,72,700;1,72,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -64,6 +64,22 @@
   .btn.ghost{background:transparent;}
   .btn.danger:hover{border-color:var(--rust);color:var(--rust);}
   input[type=file]{display:none;}
+
+  /* ===== Framework switcher ===== */
+  .frameworkbar{
+    display:flex;gap:8px;padding:12px 28px;border-bottom:1px solid var(--border);
+    background:var(--panel);flex-wrap:wrap;align-items:center;
+  }
+  .fw-label{font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.07em;margin-right:6px;}
+  .fw-btn{
+    display:flex;align-items:center;gap:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;
+    padding:8px 14px;border-radius:8px;border:1px solid var(--border-strong);background:var(--panel-3);
+    color:var(--text-dim);cursor:pointer;transition:all .15s ease;
+  }
+  .fw-btn:hover{color:var(--text);border-color:var(--border-strong);}
+  .fw-btn.active{border-color:var(--gold);color:var(--gold);background:var(--gold-dim);}
+  .fw-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,0.06);color:var(--text-faint);}
+  .fw-btn.active .fw-tag{color:var(--gold);background:rgba(201,162,75,0.14);}
 
   /* ===== Nav ===== */
   .navbar{
@@ -247,7 +263,7 @@
     <div class="brand-mark"></div>
     <div class="brand-text">
       <div class="org-display" id="orgDisplay">Your Organization</div>
-      <div class="sub">Cybersecurity Governance, Risk &amp; Compliance — NIST CSF 2.0</div>
+      <div class="sub" id="brandSub">Cybersecurity Governance, Risk &amp; Compliance — NIST CSF 2.0</div>
     </div>
   </div>
   <div class="top-actions">
@@ -259,6 +275,12 @@
     <button class="btn ghost danger" onclick="resetDashboard()">Reset</button>
     <button class="btn primary" onclick="window.print()">Print report</button>
   </div>
+</div>
+
+<div class="frameworkbar" id="frameworkBar">
+  <span class="fw-label">Framework</span>
+  <button class="fw-btn active" data-fw="csf" onclick="loadFramework('csf')">NIST CSF 2.0 <span class="fw-tag">Cybersecurity</span></button>
+  <button class="fw-btn" data-fw="airmf" onclick="loadFramework('airmf')">NIST AI RMF 1.0 <span class="fw-tag">AI Risk</span></button>
 </div>
 
 <div class="navbar">
@@ -289,8 +311,8 @@
       <div class="panel">
         <div class="panel-head">
           <div>
-            <div class="panel-title">NIST CSF 2.0 function map</div>
-            <div class="panel-sub">Govern sits at the center — it directs and is informed by the five outer functions. Click any segment to drill in.</div>
+            <div class="panel-title" id="wheelPanelTitle">NIST CSF 2.0 function map</div>
+            <div class="panel-sub" id="wheelPanelSub">Govern sits at the center — it directs and is informed by the five outer functions. Click any segment to drill in.</div>
           </div>
         </div>
         <div class="wheel-wrap">
@@ -329,8 +351,8 @@
     <div class="panel">
       <div class="panel-head">
         <div>
-          <div class="panel-title">NIST maturity tiers</div>
-          <div class="panel-sub">Where this organization currently sits, in NIST's own language</div>
+          <div class="panel-title" id="tierPanelTitle">NIST maturity tiers</div>
+          <div class="panel-sub" id="tierPanelSub">Where this organization currently sits, in NIST's own language</div>
         </div>
       </div>
       <div class="tier-grid" id="tierGrid"></div>
@@ -379,14 +401,17 @@
 
 </div>
 
-<footer>NIST CSF 2.0–aligned tracker · Data stays in this browser session only — use Export data to save, Import to reload · Not a substitute for a formal compliance audit</footer>
+<footer>NIST CSF 2.0 &amp; NIST AI RMF 1.0–aligned tracker · Data stays in this browser session only — use Export data to save, Import to reload · Not a substitute for a formal compliance audit or legal advice</footer>
 
 <script>
 /* ================= STATE ================= */
 const STATUS_LABELS = ['Not started','Documented','Implemented','Tested','Validated'];
 const STATUS_SHORT = ['—','D','I','T','V'];
-let idSeq = 0;
-function nextId(prefix){ idSeq += 1; return prefix + '-' + idSeq; }
+
+function mkModule(store, label, owner, status, target, ticket, note){
+  store.idSeq += 1;
+  return {id:'mod-'+store.idSeq, label, owner, status, target, ticket: ticket||'', note: note||''};
+}
 
 let orgProfile = {
   name: 'Your Organization',
@@ -396,56 +421,164 @@ let orgProfile = {
   preparedBy: 'CISO Office'
 };
 
-function mkModule(label, owner, status, target, ticket, note){
-  return {id: nextId('mod'), label, owner, status, target, ticket: ticket||'', note: note||''};
+/* ================= FRAMEWORK METADATA ================= */
+const FRAMEWORK_META = {
+  csf: {
+    label: 'NIST CSF 2.0',
+    brandSub: 'Cybersecurity Governance, Risk &amp; Compliance — NIST CSF 2.0',
+    wheelTitle: 'NIST CSF 2.0 function map',
+    wheelSub: 'Govern sits at the center — it directs and is informed by the five outer functions. Click any segment to drill in.',
+    tierTitle: 'NIST maturity tiers',
+    tierSub: "Where this organization currently sits, in NIST's own language",
+    tierWord: 'Tier',
+    tiers: [
+      {n:1, name:'Partial', desc:'Risk management practices are not formalized; managed reactively, sometimes ad hoc.'},
+      {n:2, name:'Risk Informed', desc:'Practices are approved by management but not yet established as organization-wide policy.'},
+      {n:3, name:'Repeatable', desc:'Practices are formally approved, expressed as policy, and applied consistently.'},
+      {n:4, name:'Adaptive', desc:'Practices are continuously improved based on lessons learned and predictive indicators.'},
+    ]
+  },
+  airmf: {
+    label: 'NIST AI RMF 1.0',
+    brandSub: 'AI Governance, Risk &amp; Compliance — NIST AI RMF 1.0',
+    wheelTitle: 'NIST AI RMF 1.0 function map',
+    wheelSub: 'Govern is the cross-cutting function — it is infused throughout Map, Measure and Manage. Click any segment to drill in.',
+    tierTitle: 'Program maturity bands',
+    tierSub: "AI RMF 1.0 does not define maturity tiers of its own — this scale is this dashboard's internal view of program maturity, for tracking purposes only.",
+    tierWord: 'Level',
+    tiers: [
+      {n:1, name:'Ad hoc', desc:'AI risk practices are informal, inconsistent, or driven by individual initiative rather than organizational process.'},
+      {n:2, name:'Developing', desc:'Core practices exist for some functions but are not yet applied consistently across AI systems or business units.'},
+      {n:3, name:'Managed', desc:'Practices are documented, resourced, and applied consistently across the AI portfolio, with clear ownership.'},
+      {n:4, name:'Optimizing', desc:'Practices are continuously measured and improved, with feedback loops from monitoring, incidents, and affected stakeholders.'},
+    ]
+  }
+};
+
+/* ================= NIST CSF 2.0 DATA ================= */
+function buildCsfStore(){
+  const store = {idSeq:0};
+  const M = (...a)=>mkModule(store, ...a);
+  store.FUNCTIONS = [
+    {id:'GV', name:'Govern', short:'GV', desc:'Establishes and monitors cybersecurity risk strategy, expectations, and policy', categories:[
+      {code:'GV.OC', name:'Organizational Context', modules:[M('Organization-wide','Board / CEO',4,'Q1 2026','','Mission, stakeholders and legal context documented and signed off by the board.')]},
+      {code:'GV.RM', name:'Risk Management Strategy', modules:[M('Organization-wide','CISO Office',3,'Q1 2026','','Risk appetite statement drafted; awaiting one more committee review cycle.')]},
+      {code:'GV.RR', name:'Roles, Responsibilities & Authorities', modules:[M('Organization-wide','CISO Office',4,'Q1 2026','','RACI signed off across IT, Legal and business units.')]},
+      {code:'GV.PO', name:'Policy', modules:[M('Organization-wide','Legal & Compliance',3,'Q2 2026','','Core policy set implemented; annual review and sign-off pending.')]},
+      {code:'GV.OV', name:'Oversight', modules:[M('Organization-wide','Audit Committee',2,'Q2 2026','','Reporting cadence to the board defined, not yet tested end to end.')]},
+      {code:'GV.SC', name:'Cybersecurity Supply Chain Risk Mgmt', modules:[M('Organization-wide','Procurement & IT Security',1,'Q3 2026','','Vendor risk questionnaire drafted, not yet rolled out to suppliers.')]},
+    ]},
+    {id:'ID', name:'Identify', short:'ID', desc:'Understands the organization’s assets, risks, and improvement needs', categories:[
+      {code:'ID.AM', name:'Asset Management', modules:[M('Organization-wide','IT Operations',3,'Q1 2026','','Asset inventory implemented; reconciliation test scheduled.')]},
+      {code:'ID.RA', name:'Risk Assessment', modules:[M('Organization-wide','Risk Committee',2,'Q2 2026','','Methodology implemented, first full assessment cycle in progress.')]},
+      {code:'ID.IM', name:'Improvement', modules:[M('Organization-wide','CISO Office',1,'Q3 2026','','Lessons-learned process documented, not yet implemented org-wide.')]},
+    ]},
+    {id:'PR', name:'Protect', short:'PR', desc:'Safeguards used to manage cybersecurity risk', categories:[
+      {code:'PR.AA', name:'Identity Mgmt & Access Control', modules:[M('Organization-wide','IT Security',3,'Q1 2026','','MFA and least-privilege implemented; access recertification being tested.')]},
+      {code:'PR.AT', name:'Awareness & Training', modules:[M('Organization-wide','HR & IT Security',2,'Q2 2026','','Annual training rolled out; phishing-simulation testing underway.')]},
+      {code:'PR.DS', name:'Data Security', modules:[M('Organization-wide','IT Security',2,'Q2 2026','','Encryption at rest/in transit implemented; DLP testing in progress.')]},
+      {code:'PR.PS', name:'Platform Security', modules:[M('Organization-wide','IT Operations',1,'Q3 2026','','Hardening baseline documented, rollout to production starting.')]},
+      {code:'PR.IR', name:'Technology Infrastructure Resilience', modules:[M('Organization-wide','IT Operations',1,'Q3 2026','','Resilience requirements documented; redundancy build in progress.')]},
+    ]},
+    {id:'DE', name:'Detect', short:'DE', desc:'Finds and analyzes possible cybersecurity attacks and compromises', categories:[
+      {code:'DE.CM', name:'Continuous Monitoring', modules:[M('Organization-wide','SOC / IT Security',2,'Q2 2026','','SIEM implemented across core systems; detection-rule tuning in progress.')]},
+      {code:'DE.AE', name:'Adverse Event Analysis', modules:[M('Organization-wide','SOC / IT Security',1,'Q3 2026','','Triage workflow documented, tooling rollout in progress.')]},
+    ]},
+    {id:'RS', name:'Respond', short:'RS', desc:'Takes action regarding a detected cybersecurity incident', categories:[
+      {code:'RS.MA', name:'Incident Management', modules:[M('Organization-wide','IT Security',2,'Q2 2026','','IR plan implemented; first tabletop exercise scheduled.')]},
+      {code:'RS.AN', name:'Incident Analysis', modules:[M('Organization-wide','IT Security',1,'Q3 2026','','Forensics procedure documented, not yet exercised.')]},
+      {code:'RS.CO', name:'Incident Reporting & Communication', modules:[M('Organization-wide','Communications & Legal',1,'Q3 2026','','Regulatory notification playbook documented, legal sign-off pending.')]},
+      {code:'RS.MI', name:'Incident Mitigation', modules:[M('Organization-wide','IT Security',0,'Q4 2026','','Containment runbooks not yet started.')]},
+    ]},
+    {id:'RC', name:'Recover', short:'RC', desc:'Restores assets and operations affected by a cybersecurity incident', categories:[
+      {code:'RC.RP', name:'Incident Recovery Plan Execution', modules:[M('Organization-wide','IT Operations',0,'Q4 2026','','Recovery plan not yet drafted — dependent on BCP refresh.')]},
+      {code:'RC.CO', name:'Incident Recovery Communication', modules:[M('Organization-wide','Communications',0,'Q4 2026','','Stakeholder communication plan not yet started.')]},
+    ]},
+  ];
+  store.PHASES = [
+    {name:'Phase 1 — Foundation', when:'Q1–Q2 2026', funcs:['GV','ID']},
+    {name:'Phase 2 — Protective controls', when:'Q2–Q3 2026', funcs:['PR']},
+    {name:'Phase 3 — Detection & response', when:'Q3–Q4 2026', funcs:['DE','RS']},
+    {name:'Phase 4 — Recovery & resilience', when:'Q4 2026–Q1 2027', funcs:['RC']},
+  ];
+  store.auditLog = [];
+  store.selectedFunction = 'GV';
+  return store;
 }
 
-let FUNCTIONS = [
-  {id:'GV', name:'Govern', short:'GV', desc:'Establishes and monitors cybersecurity risk strategy, expectations, and policy', categories:[
-    {code:'GV.OC', name:'Organizational Context', modules:[mkModule('Organization-wide','Board / CEO',4,'Q1 2026','','Mission, stakeholders and legal context documented and signed off by the board.')]},
-    {code:'GV.RM', name:'Risk Management Strategy', modules:[mkModule('Organization-wide','CISO Office',3,'Q1 2026','','Risk appetite statement drafted; awaiting one more committee review cycle.')]},
-    {code:'GV.RR', name:'Roles, Responsibilities & Authorities', modules:[mkModule('Organization-wide','CISO Office',4,'Q1 2026','','RACI signed off across IT, Legal and business units.')]},
-    {code:'GV.PO', name:'Policy', modules:[mkModule('Organization-wide','Legal & Compliance',3,'Q2 2026','','Core policy set implemented; annual review and sign-off pending.')]},
-    {code:'GV.OV', name:'Oversight', modules:[mkModule('Organization-wide','Audit Committee',2,'Q2 2026','','Reporting cadence to the board defined, not yet tested end to end.')]},
-    {code:'GV.SC', name:'Cybersecurity Supply Chain Risk Mgmt', modules:[mkModule('Organization-wide','Procurement & IT Security',1,'Q3 2026','','Vendor risk questionnaire drafted, not yet rolled out to suppliers.')]},
-  ]},
-  {id:'ID', name:'Identify', short:'ID', desc:'Understands the organization’s assets, risks, and improvement needs', categories:[
-    {code:'ID.AM', name:'Asset Management', modules:[mkModule('Organization-wide','IT Operations',3,'Q1 2026','','Asset inventory implemented; reconciliation test scheduled.')]},
-    {code:'ID.RA', name:'Risk Assessment', modules:[mkModule('Organization-wide','Risk Committee',2,'Q2 2026','','Methodology implemented, first full assessment cycle in progress.')]},
-    {code:'ID.IM', name:'Improvement', modules:[mkModule('Organization-wide','CISO Office',1,'Q3 2026','','Lessons-learned process documented, not yet implemented org-wide.')]},
-  ]},
-  {id:'PR', name:'Protect', short:'PR', desc:'Safeguards used to manage cybersecurity risk', categories:[
-    {code:'PR.AA', name:'Identity Mgmt & Access Control', modules:[mkModule('Organization-wide','IT Security',3,'Q1 2026','','MFA and least-privilege implemented; access recertification being tested.')]},
-    {code:'PR.AT', name:'Awareness & Training', modules:[mkModule('Organization-wide','HR & IT Security',2,'Q2 2026','','Annual training rolled out; phishing-simulation testing underway.')]},
-    {code:'PR.DS', name:'Data Security', modules:[mkModule('Organization-wide','IT Security',2,'Q2 2026','','Encryption at rest/in transit implemented; DLP testing in progress.')]},
-    {code:'PR.PS', name:'Platform Security', modules:[mkModule('Organization-wide','IT Operations',1,'Q3 2026','','Hardening baseline documented, rollout to production starting.')]},
-    {code:'PR.IR', name:'Technology Infrastructure Resilience', modules:[mkModule('Organization-wide','IT Operations',1,'Q3 2026','','Resilience requirements documented; redundancy build in progress.')]},
-  ]},
-  {id:'DE', name:'Detect', short:'DE', desc:'Finds and analyzes possible cybersecurity attacks and compromises', categories:[
-    {code:'DE.CM', name:'Continuous Monitoring', modules:[mkModule('Organization-wide','SOC / IT Security',2,'Q2 2026','','SIEM implemented across core systems; detection-rule tuning in progress.')]},
-    {code:'DE.AE', name:'Adverse Event Analysis', modules:[mkModule('Organization-wide','SOC / IT Security',1,'Q3 2026','','Triage workflow documented, tooling rollout in progress.')]},
-  ]},
-  {id:'RS', name:'Respond', short:'RS', desc:'Takes action regarding a detected cybersecurity incident', categories:[
-    {code:'RS.MA', name:'Incident Management', modules:[mkModule('Organization-wide','IT Security',2,'Q2 2026','','IR plan implemented; first tabletop exercise scheduled.')]},
-    {code:'RS.AN', name:'Incident Analysis', modules:[mkModule('Organization-wide','IT Security',1,'Q3 2026','','Forensics procedure documented, not yet exercised.')]},
-    {code:'RS.CO', name:'Incident Reporting & Communication', modules:[mkModule('Organization-wide','Communications & Legal',1,'Q3 2026','','Regulatory notification playbook documented, legal sign-off pending.')]},
-    {code:'RS.MI', name:'Incident Mitigation', modules:[mkModule('Organization-wide','IT Security',0,'Q4 2026','','Containment runbooks not yet started.')]},
-  ]},
-  {id:'RC', name:'Recover', short:'RC', desc:'Restores assets and operations affected by a cybersecurity incident', categories:[
-    {code:'RC.RP', name:'Incident Recovery Plan Execution', modules:[mkModule('Organization-wide','IT Operations',0,'Q4 2026','','Recovery plan not yet drafted — dependent on BCP refresh.')]},
-    {code:'RC.CO', name:'Incident Recovery Communication', modules:[mkModule('Organization-wide','Communications',0,'Q4 2026','','Stakeholder communication plan not yet started.')]},
-  ]},
-];
+/* ================= NIST AI RMF 1.0 DATA ================= */
+function buildAirmfStore(){
+  const store = {idSeq:0};
+  const M = (...a)=>mkModule(store, ...a);
+  store.FUNCTIONS = [
+    {id:'GV', name:'Govern', short:'GV', desc:'Cross-cutting function that builds a culture of AI risk management, sets accountability, and puts policies in place across the full AI lifecycle', categories:[
+      {code:'GV.1', name:'Policies, Processes & Oversight', modules:[M('Organization-wide','Board / CAIO',3,'Q1 2026','','AI policy suite and inventory process implemented; annual review cadence being tested.')]},
+      {code:'GV.2', name:'Accountability Structures', modules:[M('Organization-wide','CAIO / Legal',3,'Q1 2026','','Roles and RACI for AI risk documented; executive sign-off obtained.')]},
+      {code:'GV.3', name:'Workforce Diversity & Human-AI Configuration', modules:[M('Organization-wide','HR & AI Governance',1,'Q3 2026','','Interdisciplinary review requirement documented, not yet applied to live projects.')]},
+      {code:'GV.4', name:'Organizational Risk Culture', modules:[M('Organization-wide','CAIO Office',2,'Q2 2026','','Safety-first design principles implemented for new builds; incident-sharing process in testing.')]},
+      {code:'GV.5', name:'Stakeholder Engagement', modules:[M('Organization-wide','Product & Trust Team',1,'Q3 2026','','External feedback channel documented, rollout to affected users pending.')]},
+      {code:'GV.6', name:'Third-Party & Supply Chain Risk', modules:[M('Organization-wide','Procurement & Legal',1,'Q3 2026','','Vendor/model-provider risk questionnaire drafted, not yet rolled out.')]},
+    ]},
+    {id:'MP', name:'Map', short:'MP', desc:'Establishes context, intended use, and categorization for an AI system so its risks and benefits are understood before a build, buy, or deploy decision', categories:[
+      {code:'MP.1', name:'Context Established', modules:[M('Organization-wide','Product Owner',3,'Q1 2026','','Intended use, users, and risk tolerance documented for priority systems; review cycle in progress.')]},
+      {code:'MP.2', name:'AI System Categorization', modules:[M('Organization-wide','AI Governance',2,'Q2 2026','','System task/technique classification implemented for the model inventory; validation underway.')]},
+      {code:'MP.3', name:'Capabilities, Benefits & Costs', modules:[M('Organization-wide','Product & Finance',2,'Q2 2026','','Benefit/cost analysis implemented for flagship use cases; benchmarking being tested.')]},
+      {code:'MP.4', name:'Component Risk Mapping', modules:[M('Organization-wide','Engineering & Legal',1,'Q3 2026','','Third-party model and data risk mapping documented, not yet applied portfolio-wide.')]},
+      {code:'MP.5', name:'Impact Characterization', modules:[M('Organization-wide','Risk & Trust Team',1,'Q3 2026','','Likelihood/magnitude impact assessment method documented, first pilot in progress.')]},
+    ]},
+    {id:'MS', name:'Measure', short:'MS', desc:'Uses quantitative and qualitative methods to test, evaluate, and monitor an AI system’s trustworthiness, performance, and risk over time', categories:[
+      {code:'MS.1', name:'Methods & Metrics Identified', modules:[M('Organization-wide','ML Engineering',2,'Q2 2026','','Metric set selected for top risks; effectiveness review in progress.')]},
+      {code:'MS.2', name:'Trustworthy Characteristics Evaluated', modules:[M('Organization-wide','ML Engineering & Security',1,'Q3 2026','','TEVV plan documented covering safety, security, fairness and privacy; tooling rollout starting.')]},
+      {code:'MS.3', name:'Risk Tracking Mechanisms', modules:[M('Organization-wide','AI Governance',1,'Q3 2026','','Emergent-risk tracking approach documented, not yet implemented in production.')]},
+      {code:'MS.4', name:'Measurement Feedback', modules:[M('Organization-wide','Product & Trust Team',0,'Q4 2026','','Process for validating measurement results with domain experts not yet started.')]},
+    ]},
+    {id:'MG', name:'Manage', short:'MG', desc:'Allocates resources to prioritized AI risks and defines response, recovery, and communication plans for incidents and residual risk', categories:[
+      {code:'MG.1', name:'Risk Prioritization & Response', modules:[M('Organization-wide','AI Governance',2,'Q2 2026','','Go/no-go and prioritization process implemented for flagged systems; documentation being tested.')]},
+      {code:'MG.2', name:'Benefit Maximization Strategies', modules:[M('Organization-wide','Product Owner',1,'Q3 2026','','Resourcing plan for risk mitigation documented, not yet applied across the portfolio.')]},
+      {code:'MG.3', name:'Third-Party Risk Management', modules:[M('Organization-wide','Procurement & Security',1,'Q3 2026','','Ongoing monitoring of third-party/pre-trained models documented, tooling rollout pending.')]},
+      {code:'MG.4', name:'Risk Treatment Monitoring', modules:[M('Organization-wide','AI Governance',0,'Q4 2026','','Post-deployment monitoring and incident communication plan not yet drafted.')]},
+    ]},
+  ];
+  store.PHASES = [
+    {name:'Phase 1 — Governance foundation', when:'Q1–Q2 2026', funcs:['GV']},
+    {name:'Phase 2 — System context & mapping', when:'Q2–Q3 2026', funcs:['MP']},
+    {name:'Phase 3 — Measurement & evaluation', when:'Q3–Q4 2026', funcs:['MS']},
+    {name:'Phase 4 — Risk management & monitoring', when:'Q4 2026–Q1 2027', funcs:['MG']},
+  ];
+  store.auditLog = [];
+  store.selectedFunction = 'GV';
+  return store;
+}
 
-const PHASES = [
-  {name:'Phase 1 — Foundation', when:'Q1–Q2 2026', funcs:['GV','ID']},
-  {name:'Phase 2 — Protective controls', when:'Q2–Q3 2026', funcs:['PR']},
-  {name:'Phase 3 — Detection & response', when:'Q3–Q4 2026', funcs:['DE','RS']},
-  {name:'Phase 4 — Recovery & resilience', when:'Q4 2026–Q1 2027', funcs:['RC']},
-];
+/* ================= DATA STORE / FRAMEWORK SWITCHING ================= */
+const dataStore = { csf: buildCsfStore(), airmf: buildAirmfStore() };
+let activeFramework = 'csf';
+let FUNCTIONS = dataStore.csf.FUNCTIONS;
+let PHASES = dataStore.csf.PHASES;
+let auditLog = dataStore.csf.auditLog;
+let selectedFunction = dataStore.csf.selectedFunction;
 
-let auditLog = [];
-let selectedFunction = 'GV';
+window.loadFramework = function(key){
+  if(!dataStore[key]) return;
+  activeFramework = key;
+  const store = dataStore[key];
+  FUNCTIONS = store.FUNCTIONS;
+  PHASES = store.PHASES;
+  auditLog = store.auditLog;
+  selectedFunction = store.selectedFunction;
+  updateFrameworkChrome();
+  renderAll();
+};
+
+function updateFrameworkChrome(){
+  const meta = FRAMEWORK_META[activeFramework];
+  document.querySelectorAll('.fw-btn').forEach(b=>b.classList.toggle('active', b.dataset.fw===activeFramework));
+  document.getElementById('brandSub').innerHTML = meta.brandSub;
+  document.getElementById('wheelPanelTitle').textContent = meta.wheelTitle;
+  document.getElementById('wheelPanelSub').textContent = meta.wheelSub;
+  document.getElementById('tierPanelTitle').textContent = meta.tierTitle;
+  document.getElementById('tierPanelSub').textContent = meta.tierSub;
+}
 
 /* ================= SCORING HELPERS ================= */
 function allModulesFlat(){
@@ -560,6 +693,7 @@ function renderWheel(){
 }
 window.goToFunction = function(id){
   selectedFunction = id;
+  dataStore[activeFramework].selectedFunction = id;
   switchTab('map');
   renderMap();
 };
@@ -567,7 +701,7 @@ window.goToFunction = function(id){
 /* ================= RADAR ================= */
 function renderRadar(){
   const cx=170, cy=160, maxR=120;
-  const order = ['GV','ID','PR','DE','RS','RC'];
+  const order = FUNCTIONS.map(f=>f.id);
   const n = order.length;
   let svg = '';
   [25,50,75,100].forEach(level=>{
@@ -608,6 +742,7 @@ function renderRadar(){
 
 /* ================= KPIs ================= */
 function renderKPIs(){
+  const meta = FRAMEWORK_META[activeFramework];
   const score = overallScore();
   const tier = tierForScore(score);
   const mods = allModulesFlat();
@@ -615,14 +750,14 @@ function renderKPIs(){
   const onTrack = FUNCTIONS.filter(f=>funcScore(f)>=70).length;
   const notValidated = mods.filter(m=>m.status<4).sort((a,b)=>a.target.localeCompare(b.target));
   const next = notValidated[0];
-  const tierNames = ['','Partial','Risk Informed','Repeatable','Adaptive'];
+  const tierNames = meta.tiers.reduce((acc,t)=>{acc[t.n]=t.name; return acc;},{});
   const tagColor = score>=75?'sage':score>=45?'amber':'rust';
 
   document.getElementById('kpiRow').innerHTML = `
     <div class="kpi">
       <div class="label">Overall maturity</div>
       <div class="value gold">${score}%</div>
-      <div class="tag" style="background:var(--${tagColor}-dim);color:var(--${tagColor})">Tier ${tier} · ${tierNames[tier]}</div>
+      <div class="tag" style="background:var(--${tagColor}-dim);color:var(--${tagColor})">${meta.tierWord} ${tier} · ${tierNames[tier]}</div>
     </div>
     <div class="kpi">
       <div class="label">Modules validated</div>
@@ -636,7 +771,7 @@ function renderKPIs(){
     </div>
     <div class="kpi">
       <div class="label">Functions on track</div>
-      <div class="value">${onTrack}<span style="font-size:16px;color:var(--text-dim)">/6</span></div>
+      <div class="value">${onTrack}<span style="font-size:16px;color:var(--text-dim)">/${FUNCTIONS.length}</span></div>
       <div class="delta">Scoring ≥ 70%</div>
     </div>
     <div class="kpi">
@@ -671,16 +806,11 @@ function renderAttention(){
 
 /* ================= TIER LEGEND ================= */
 function renderTiers(){
+  const meta = FRAMEWORK_META[activeFramework];
   const current = tierForScore(overallScore());
-  const tiers = [
-    {n:1, name:'Partial', desc:'Risk management practices are not formalized; managed reactively, sometimes ad hoc.'},
-    {n:2, name:'Risk Informed', desc:'Practices are approved by management but not yet established as organization-wide policy.'},
-    {n:3, name:'Repeatable', desc:'Practices are formally approved, expressed as policy, and applied consistently.'},
-    {n:4, name:'Adaptive', desc:'Practices are continuously improved based on lessons learned and predictive indicators.'},
-  ];
-  document.getElementById('tierGrid').innerHTML = tiers.map(t=>`
+  document.getElementById('tierGrid').innerHTML = meta.tiers.map(t=>`
     <div class="tier-card ${t.n===current?'current':''}">
-      <div class="t-num">TIER ${t.n}${t.n===current?' · CURRENT':''}</div>
+      <div class="t-num">${meta.tierWord.toUpperCase()} ${t.n}${t.n===current?' · CURRENT':''}</div>
       <div class="t-name">${t.name}</div>
       <div class="t-desc">${t.desc}</div>
     </div>
@@ -698,7 +828,7 @@ function renderFuncSelector(){
 }
 function renderMap(){
   renderFuncSelector();
-  const f = FUNCTIONS.find(f=>f.id===selectedFunction);
+  const f = FUNCTIONS.find(f=>f.id===selectedFunction) || FUNCTIONS[0];
   let html = `<p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;max-width:760px;">${f.desc}</p>`;
   f.categories.forEach(c=>{ html += renderCategoryRow(f.id, c); });
   document.getElementById('categoryList').innerHTML = html;
@@ -751,7 +881,7 @@ window.addModule = function(funcId, code){
   const f = FUNCTIONS.find(f=>f.id===funcId);
   const cat = f.categories.find(c=>c.code===code);
   const n = cat.modules.length + 1;
-  cat.modules.push(mkModule('New module '+n, 'Unassigned', 0, 'TBD', '', ''));
+  cat.modules.push(mkModule(dataStore[activeFramework], 'New module '+n, 'Unassigned', 0, 'TBD', '', ''));
   auditLog.unshift({ts:fmtNow(), code, name:cat.name, func:f.name, from:'—', to:'Module added', ticket:''});
   renderAll();
 };
@@ -813,7 +943,7 @@ function renderRoadmap(){
 function renderAudit(){
   const wrap = document.getElementById('auditTableWrap');
   if(auditLog.length===0){
-    wrap.innerHTML = `<div class="empty-state">No changes logged yet. Adjust a validation stage in Framework Map to begin the audit trail.</div>`;
+    wrap.innerHTML = `<div class="empty-state">No changes logged yet for ${FRAMEWORK_META[activeFramework].label}. Adjust a validation stage in Framework Map to begin the audit trail.</div>`;
     return;
   }
   wrap.innerHTML = `
@@ -828,7 +958,14 @@ function renderAudit(){
 
 /* ================= EXPORT / IMPORT ================= */
 function exportJSON(){
-  const payload = {orgProfile, functions: FUNCTIONS, auditLog, idSeq};
+  const payload = {
+    schema: 2,
+    orgProfile,
+    frameworks: {
+      csf: {FUNCTIONS: dataStore.csf.FUNCTIONS, auditLog: dataStore.csf.auditLog, idSeq: dataStore.csf.idSeq},
+      airmf: {FUNCTIONS: dataStore.airmf.FUNCTIONS, auditLog: dataStore.airmf.auditLog, idSeq: dataStore.airmf.idSeq}
+    }
+  };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -836,13 +973,14 @@ function exportJSON(){
   a.click();
 }
 function exportCSV(){
-  const rows = [['Function','Code','Category','Module','Owner','Status','Target','Ticket','Notes']];
-  allModulesFlat().forEach(m=>rows.push([m.funcName,m.code,m.catName,m.label,m.owner,STATUS_LABELS[m.status],m.target,m.ticket,(m.note||'').replace(/\n/g,' ')]));
+  const rows = [['Framework','Function','Code','Category','Module','Owner','Status','Target','Ticket','Notes']];
+  const label = FRAMEWORK_META[activeFramework].label;
+  allModulesFlat().forEach(m=>rows.push([label,m.funcName,m.code,m.catName,m.label,m.owner,STATUS_LABELS[m.status],m.target,m.ticket,(m.note||'').replace(/\n/g,' ')]));
   const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], {type:'text/csv'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = (orgProfile.name||'grc-dashboard').replace(/[^a-z0-9]+/gi,'-').toLowerCase() + '-nist-categories.csv';
+  a.download = (orgProfile.name||'grc-dashboard').replace(/[^a-z0-9]+/gi,'-').toLowerCase() + '-' + activeFramework + '-categories.csv';
   a.click();
 }
 document.getElementById('importFile').addEventListener('change', function(e){
@@ -852,11 +990,25 @@ document.getElementById('importFile').addEventListener('change', function(e){
   reader.onload = function(evt){
     try{
       const data = JSON.parse(evt.target.result);
-      if(data.functions){ FUNCTIONS = data.functions; }
-      if(data.auditLog){ auditLog = data.auditLog; }
       if(data.orgProfile){ orgProfile = data.orgProfile; }
-      if(data.idSeq){ idSeq = data.idSeq; }
-      renderAll();
+      if(data.schema===2 && data.frameworks){
+        ['csf','airmf'].forEach(key=>{
+          const incoming = data.frameworks[key];
+          if(incoming && incoming.FUNCTIONS){
+            dataStore[key].FUNCTIONS = incoming.FUNCTIONS;
+            dataStore[key].auditLog = incoming.auditLog || [];
+            dataStore[key].idSeq = incoming.idSeq || 0;
+          }
+        });
+      } else if(data.functions){
+        // Legacy single-framework export (assumed NIST CSF 2.0)
+        dataStore.csf.FUNCTIONS = data.functions;
+        dataStore.csf.auditLog = data.auditLog || [];
+        dataStore.csf.idSeq = data.idSeq || 0;
+      } else {
+        throw new Error('Unrecognized file');
+      }
+      loadFramework(activeFramework);
     }catch(err){
       alert('Could not read that file — please choose a JSON export from this dashboard.');
     }
@@ -866,17 +1018,22 @@ document.getElementById('importFile').addEventListener('change', function(e){
 
 /* ================= RESET ================= */
 function resetDashboard(){
-  const ok = confirm('Reset to a blank template?\n\nThis clears every module, status, owner, ticket, and note, plus the audit log, so a new organization can start from scratch. Export your data first if you want to keep it — this cannot be undone.');
+  const meta = FRAMEWORK_META[activeFramework];
+  const ok = confirm('Reset '+meta.label+' to a blank template?\n\nThis clears every module, status, owner, ticket, and note, plus the audit log, for this framework only — the other framework and your organization profile are left untouched. Export your data first if you want to keep it — this cannot be undone.');
   if(!ok) return;
-  FUNCTIONS = FUNCTIONS.map(f => ({
+  const store = dataStore[activeFramework];
+  const blanked = FUNCTIONS.map(f => ({
     ...f,
     categories: f.categories.map(c => ({
-      ...c, modules: [mkModule('Organization-wide','Unassigned',0,'TBD','','')]
+      ...c, modules: [mkModule(store, 'Organization-wide','Unassigned',0,'TBD','','')]
     }))
   }));
-  auditLog = [];
-  orgProfile = {name:'Your Organization', scope:'Enterprise-wide', industry:'Add industry', date:new Date().toISOString().slice(0,10), preparedBy:'Unassigned'};
-  selectedFunction = 'GV';
+  store.FUNCTIONS = blanked;
+  store.auditLog = [];
+  store.selectedFunction = FUNCTIONS[0].id;
+  FUNCTIONS = store.FUNCTIONS;
+  auditLog = store.auditLog;
+  selectedFunction = store.selectedFunction;
   renderAll();
 }
 
@@ -902,6 +1059,7 @@ function renderAll(){
   renderRoadmap();
   renderAudit();
 }
+updateFrameworkChrome();
 renderAll();
 </script>
 </body>
