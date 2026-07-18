@@ -799,7 +799,7 @@ function renderAttention(){
         <div class="att-name">${m.funcName} · ${m.catName} <span class="mono" style="color:var(--text-faint);font-size:10.5px">${m.code}</span>${m.label && m.label!=='Organization-wide' ? ' — '+escapeHtml(m.label) : ''}</div>
         <div class="att-meta">Owner: ${escapeHtml(m.owner)} · Stage: ${STATUS_LABELS[m.status]}${m.ticket ? ' · <span class="att-ticket">'+escapeHtml(m.ticket)+'</span>' : ''}</div>
       </div>
-      <div class="att-due">${m.target}</div>
+      <div class="att-due">${escapeHtml(m.target)}</div>
     </li>
   `).join('');
 }
@@ -950,7 +950,7 @@ function renderAudit(){
     <table>
       <thead><tr><th>Timestamp</th><th>Function</th><th>Category / module</th><th>From</th><th>To</th><th>Ticket</th></tr></thead>
       <tbody>
-        ${auditLog.map(a=>`<tr><td class="mono">${a.ts}</td><td>${a.func}</td><td>${a.code} — ${escapeHtml(a.name)}</td><td>${a.from}</td><td><strong>${a.to}</strong></td><td>${a.ticket?'<span class="ticket-chip">'+escapeHtml(a.ticket)+'</span>':'—'}</td></tr>`).join('')}
+        ${auditLog.map(a=>`<tr><td class="mono">${escapeHtml(a.ts)}</td><td>${escapeHtml(a.func)}</td><td>${escapeHtml(a.code)} — ${escapeHtml(a.name)}</td><td>${escapeHtml(a.from)}</td><td><strong>${escapeHtml(a.to)}</strong></td><td>${a.ticket?'<span class="ticket-chip">'+escapeHtml(a.ticket)+'</span>':'—'}</td></tr>`).join('')}
       </tbody>
     </table>
   `;
